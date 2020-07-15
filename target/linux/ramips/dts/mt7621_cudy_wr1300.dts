@@ -15,136 +15,175 @@
 		reg = <0x0 0x8000000>;
 	};
 
+	aliases {
+		label-mac-device = &gmac0;
+		led-boot = &led_system;
+		led-failsafe = &led_system;
+		led-running = &led_system;
+		led-upgrade = &led_system;
+	};
+
 	chosen {
 		bootargs = "console=ttyS0,115200";
 	};
 
-	gpio-keys-polled {
-		compatible = "gpio-keys-polled";
+	keys {
+		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		poll-interval = <20>;
 
 		reset {
 			label = "reset";
-			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 18 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_RESTART>;
 		};
 
 		wps {
 			label = "wps";
-			gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WPS_BUTTON>;
 		};
 	};
 
-	gpio-leds {
+	leds {
 			compatible = "gpio-leds";
-			status {
+
+			led_system: status {
 				label = "cudy:green:status";
-				gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+				gpios = <&gpio 15 GPIO_ACTIVE_HIGH>;
+				default-state = "keep";
 			};
 
 			wps {
 				label = "cudy:green:wps";
-				gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+				gpios = <&gpio 13 GPIO_ACTIVE_LOW>;
 			};
 
 			usb {
 				label = "cudy:green:usb";
-				gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+				gpios = <&gpio 14 GPIO_ACTIVE_HIGH>;
+				linux,default-trigger = "usbport";
+				trigger-sources = <&xhci_ehci_port1>;
 			};
 	};
-
 };
 
 &spi0 {
 	status = "okay";
 
-	m25p80@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
 		m25p,chunked-io = <32>;
 
-		partition@0 {
-			label = "u-boot";
-			reg = <0x0 0x30000>;
-		};
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
 
-		partition@30000 {
-			label = "u-boot-env";
-			reg = <0x30000 0x10000>;
-		};
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x30000>;
+				read-only;
+			};
 
-		factory: partition@40000 {
-			label = "factory";
-			reg = <0x40000 0x10000>;
-		};
+			partition@30000 {
+				label = "u-boot-env";
+				reg = <0x30000 0x10000>;
+				read-only;
+			};
 
-		debug: partition@fd0000 {
-			label = "debug";
-			reg = <0xfd0000 0x10000>;
-		};
+			factory: partition@40000 {
+				label = "factory";
+				reg = <0x40000 0x10000>;
+				read-only;
+			};
 
-		backup: partition@fe0000 {
-			label = "backup";
-			reg = <0xfe0000 0x10000>;
-		};
+			debug: partition@fd0000 {
+				label = "debug";
+				reg = <0xfd0000 0x10000>;
+			};
 
-		bdinfo: partition@ff0000 {
-			label = "bdinfo";
-			reg = <0xff0000 0x10000>;
-		};
+			backup: partition@fe0000 {
+				label = "backup";
+				reg = <0xfe0000 0x10000>;
+			};
 
-		partition@50000 {
-			label = "firmware";
-			reg = <0x50000 0xf80000>;
+			bdinfo: partition@ff0000 {
+				label = "bdinfo";
+				reg = <0xff0000 0x10000>;
+				read-only;
+			};
+
+			partition@50000 {
+				label = "firmware";
+				reg = <0x50000 0xf80000>;
+				compatible = "denx,uimage";
+			};
 		};
 	};
 };
 
 &pcie {
 	status = "okay";
+};
 
-	pcie0 {
-		mt76@0,0 {
-			reg = <0x0000 0 0 0 0>;
-			device_type = "pci";
-			mediatek,mtd-eeprom = <&factory 0x0000>;
-
-			led {
-                                led-active-low;
-                        };
-		};
-	};
-
-	pcie1 {
-		mt76@1,0 {
-			reg = <0x0000 0 0 0 0>;
-			device_type = "pci";
-			mediatek,mtd-eeprom = <&factory 0x8000>;
-			ieee80211-freq-limit = <5000000 6000000>;
-
-			led {
-                                led-sources = <2>;
-                                led-active-low;
-                        };
-		};
+&pcie0 {
+	mt76@0,0 {
+		compatible = "mediatek,mt76";
+		reg = <0x0000 0 0 0 0>;
+		mediatek,mtd-eeprom = <&factory 0x0000>;
 	};
 };
 
-&ethernet {
+&pcie1 {
+	mt76@1,0 {
+		compatible = "mediatek,mt76";
+		reg = <0x0000 0 0 0 0>;
+		mediatek,mtd-eeprom = <&factory 0x8000>;
+		ieee80211-freq-limit = <5000000 6000000>;
+	};
+};
+
+&gmac0 {
 	mtd-mac-address = <&bdinfo 0xDE00>;
 };
 
-&pinctrl {
-	state_default: pinctrl0 {
-		gpio {
-			ralink,group = "wdt", "rgmii2", "jtag", "mdio";
-			ralink,function = "gpio";
+&switch0 {
+	ports {
+		port@0 {
+			status = "okay";
+			label = "lan1";
 		};
+
+		port@1 {
+			status = "okay";
+			label = "lan2";
+		};
+
+		port@2 {
+			status = "okay";
+			label = "lan3";
+		};
+
+		port@3 {
+			status = "okay";
+			label = "lan4";
+		};
+
+		port@4 {
+			status = "okay";
+			label = "wan";
+			mtd-mac-address = <&bdinfo 0xDE00>;
+			mtd-mac-address-increment = <1>;
+		};
+	};
+};
+
+&state_default {
+	gpio {
+		groups = "i2c", "uart3", "wdt";
+		function = "gpio";
 	};
 };
