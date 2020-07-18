@@ -10,11 +10,6 @@
 	compatible = "cudy,wr1300", "mediatek,mt7621-soc";
 	model = "CUDY WR1300";
 
-	memory@0 {
-		device_type = "memory";
-		reg = <0x0 0x8000000>;
-	};
-
 	aliases {
 		label-mac-device = &gmac0;
 		led-boot = &led_system;
